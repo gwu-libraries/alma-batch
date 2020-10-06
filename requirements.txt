@@ -1,0 +1,5 @@
+aiohttp==3.6.2
+asyncio-throttle==1.0.1
+pandas==1.1.1
+pyaml==20.4.0
+requests==2.24.0
