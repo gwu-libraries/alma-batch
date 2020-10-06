@@ -14,15 +14,14 @@ from functools import partial
 
 class AlmaBatch:
 	
-	def __init__(self, openapi: str, config: str):
+	def __init__(self, config: str):
 		'''
-			openapi: A path to a file or a URL for retrieving the OpenAPI documentation for the desired operation
 			config: A path to a YAML config file that includes the following
 					- the user's API key
 					- the type of API query (as specified by an EX Libris API endpoint)
 		'''
 		self.load_config(config)
-		self.api_doc = self.load_openapi(openapi)
+		self.api_doc = self.load_openapi(self.openapi)
 		self.header = self.create_header()
 		self.results = [] # Store batch results 
 		self.errors = [] # Store batch errors
@@ -155,9 +154,9 @@ class AlmaBatch:
 		try:
 			# Wrap the call in the throttler context manager
 			async with self.throttler:
-				async with client_method(url, raise_for_status=True, **args) as session:
+				async with client_method(url, **args) as session:
 					# Check for an API error (which will not be sent as JSON or XML)
-					if session.content_type != self.accepts:
+					if (session.content_type != self.accepts) or (session.status != 200):
 						error = await session.text()
 						raise APIException(error)
 					elif self.content_type == 'application/json':
@@ -251,6 +250,7 @@ class AlmaBatch:
 		if hasattr(self, 'output_file'):
 			self.write_csv()
 		if hasattr(self, 'path_for_api_output') and self.serialize_return:
+			print(f'Saving API output for batch {iteration+1}')
 			self.dump_output(batch=iteration+1)
 
 
