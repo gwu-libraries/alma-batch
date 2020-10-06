@@ -1,0 +1,8 @@
+apikey: 
+openapi: https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/bibs.json 
+exl_base: https://api-na.hosted.exlibrisgroup.com
+endpoint: "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}"
+operation: get
+content_type: "application/json"
+output_file: 
+path_for_api_output: 

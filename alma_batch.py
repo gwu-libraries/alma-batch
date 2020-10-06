@@ -126,7 +126,7 @@ class AlmaBatch:
 			url = row['link']
 		else:
 			# Construct the URL
-			url = EXL_BASE + self.endpoint
+			url = self.exl_base + self.endpoint
 			url = url.format(**row)
 		#Include the remaining key-value pairs in the row if in the params for this endpoint
 		params = {k: v for k,v in row.items() if k in self.query_params}	

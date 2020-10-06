@@ -1,5 +1,3 @@
-EXL_BASE = 'https://api-na.hosted.exlibrisgroup.com'
-
 def convert_column_case(columns: list):
 	'''Columns should be a list of strings (or other iterator) corresponding to column names. 
 	Returns snake-cased versions of these strings.'''
