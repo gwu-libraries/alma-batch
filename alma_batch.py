@@ -10,6 +10,7 @@ from pathlib import Path
 from alma_batch_utils import *
 from uuid import uuid4
 from datetime import datetime
+from functools import partial
 
 class AlmaBatch:
 	
@@ -170,7 +171,6 @@ class AlmaBatch:
 		except Exception as e:
 			# If this row throws an exception, record it in the errors list
 			row['error'] = e
-			raise e
 			self.errors.append(row)
 			return
 	
@@ -245,6 +245,47 @@ class AlmaBatch:
 		self.client = aiohttp.ClientSession()
 		async with self.client:
 			await asyncio.gather(*(self._async_request(row=row, idx=i) for i, row in batch))
+
+	def do_after_requests(self, iteration: int):
+		self.update_data()
+		if hasattr(self, 'output_file'):
+			self.write_csv()
+		if hasattr(self, 'path_for_api_output') and self.serialize_return:
+			self.dump_output(batch=iteration+1)
+
+
+	def make_batch(self):
+		# If self.data is a DataFrame, convert to native Python structure (list of dicts) for processing
+		# Include the index of the row as a separate value
+		if hasattr(self.data, 'columns'):
+			rows = [(i, row._asdict()) for i, row in enumerate(self.data.itertuples(index=False))]
+		else:
+			rows = [(i, row) for i, row in enumerate(self.data)]
+		if self.batch_size > 0:
+			batches = chunk_list(rows, self.batch_size)
+		# If batch_size = 0, use a single batch
+		else:
+			batches = [rows]
+		return batches
+
+	async def make_requests_async(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
+		self.batch_size = batch_size
+		self.serialize_return = serialize_return
+		# Context manager for throttling the requests
+		self.throttler = Throttler(rate_limit)
+
+		batches = self.make_batch()
+		for j, batch in enumerate(batches):
+			try:
+				print(f'Running batch {j+1}...')
+				await self._gather_requests(batch)
+				self.do_after_requests(iteration=j)
+			except Exception as e:
+				print(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
+				#continue
+				raise # For debugging
+		print('All requests completed.')
+		return self
 	
 	def make_requests(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
 		'''Schedules asynchronous requests in batches.
@@ -255,29 +296,16 @@ class AlmaBatch:
 		This allows the user to keep track of which rows have been processed in the event of application crash, serious network interruption, etc.
 		Set the serialize_return flag to true to save the current API ouput to disk, too.'''
 		self.batch_size = batch_size
-		# If self.data is a DataFrame, convert to native Python structure (list of dicts) for processing
-		# Include the index of the row as a separate value
-		if hasattr(self.data, 'columns'):
-			rows = [(i, row._asdict()) for i, row in enumerate(self.data.itertuples(index=False))]
-		else:
-			rows = [(i, row) for i, row in enumerate(self.data)]
+		self.serialize_return = serialize_return
 		# Context manager for throttling the requests
 		self.throttler = Throttler(rate_limit)
-		if batch_size > 0:
-			batches = chunk_list(rows, batch_size)
-		# If batch_size = 0, use a single batch
-		else:
-			batches = [rows]	
+		batches = self.make_batch()
 		# Run in batches, pausing between each to update the data
 		for j, batch in enumerate(batches):
 			try:
 				print(f'Running batch {j+1}...')
 				asyncio.run(self._gather_requests(batch))
-				self.update_data()
-				if hasattr(self, 'output_file'):
-					self.write_csv()
-				if hasattr(self, 'path_for_api_output') and serialize_return:
-					self.dump_output(batch=j+1)
+				self.do_after_requests(iteration=j)
 			except Exception as e:
 				print(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
 				#continue
