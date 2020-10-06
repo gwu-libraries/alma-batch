@@ -19,14 +19,14 @@ source ENV/bin/activate
 pip install -r requirements.txt
 ```
 4. Edit `_config.yml_` with the following information:
-  - The URL for [the OpenAPI specs](https://developers.exlibrisgroup.com/blog/openapi-support-in-alma-apis/) (in JSON) for the particular API endpoint you're using (from the Ex Libris Dev Center documentation).
-  - A valid Ex Libris API key.
-  - The base URL for your Alma API endpoint.
-  - The particular endpoint you are using (from the Ex Libris Dev Center documentation).
-  - The name of an output file (in CSV format) where AlmaBatch will report the results of each call (including the path to it on your local machine).
-  - An optional path to a folder (on your local machine) for serializing the results from the API calls.
+   - The URL for [the OpenAPI specs](https://developers.exlibrisgroup.com/blog/openapi-support-in-alma-apis/) (in JSON) for the particular API endpoint you're using (from the Ex Libris Dev Center documentation).
+   - A valid Ex Libris API key.
+   - The base URL for your Alma API endpoint.
+   - The particular endpoint you are using (from the Ex Libris Dev Center documentation).
+   - The name of an output file (in CSV format) where AlmaBatch will report the results of each call (including the path to it on your local machine).
+   - An optional path to a folder (on your local machine) for serializing the results from the API calls.
 5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in `alma_batch_example.ipynb`).
-  - Use `AlmaBatch.load_csv()` to load an external CSV file.
-  - Or assign a pandas `DataFrame` or list of Python dictionaries directly to the `AlmaBatch.data` attribute.
-  - Use `AlmaBatch.make_requests()` to run from a script. (This function will launch its own event loop.)
-  - The alternate method `AlmaBatch.make_requests_async()` is provided for running within a Jupypter notebook with the `await` syntax (see the example).
+   - Use `AlmaBatch.load_csv()` to load an external CSV file.
+   - Or assign a pandas `DataFrame` or list of Python dictionaries directly to the `AlmaBatch.data` attribute.
+   - Use `AlmaBatch.make_requests()` to run from a script. (This function will launch its own event loop.)
+   - The alternate method `AlmaBatch.make_requests_async()` is provided for running within a Jupypter notebook with the `await` syntax (see the example).
