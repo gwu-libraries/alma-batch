@@ -303,26 +303,7 @@ class AlmaBatch:
                 print(f"Aborting request {request_task['idx']} without completion.")
                 #self.queue.task_done()
                 raise e
-
-    async def make_requests_async(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
-        self.batch_size = batch_size
-        self.serialize_return = serialize_return
-        # Context manager for throttling the requests
-        self.throttler = Throttler(rate_limit)
-
-        batches = self._make_batch()
-        for j, batch in enumerate(batches):
-            try:
-                print(f'Running batch {j+1}...')
-                await self._gather_requests(batch)
-                self._do_after_requests(iteration=j)
-            except Exception as e:
-                print(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
-                #continue
-                raise # For debugging
-        print('All requests completed.')
-        return self
-    
+ 
     async def _main(self, batch): 
         '''
         Handles adding tasks to the queue, one per request, and then running the queue with the event loop. This function is blocking: each batch will kick off a "new" asynchronous queue of tasks, which will be finished before the next batch proceeds. 
