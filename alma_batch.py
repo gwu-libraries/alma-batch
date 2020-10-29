@@ -257,7 +257,7 @@ class AlmaBatch:
         client_method = getattr(self.client, self.operation)
         try:
             # Wrap the call in the throttler context manager
-            async with self.throttler:
+            async with self.throttler:    
                 async with client_method(url, **args) as session:
                     # Check for an API error (which will not be sent as JSON or XML)
                     if (session.content_type != self.accepts) or (session.status != 200):
@@ -267,7 +267,7 @@ class AlmaBatch:
                         result = await session.json()
                     else:
                         result = await session.text()
-                    # Save the result
+                        # Save the result
             output['result'] = result
             self.results.append(output)
             if page == 0 :
@@ -292,13 +292,13 @@ class AlmaBatch:
             try:
                 more_pages = await self._async_request(**request_task) 
                 # Mark the current request task as done
-                self.queue.task_done()
                 # If there are more pages, add those requests to the queue
                 for page in range(more_pages):
                     # Update the page parameter for each additional page of results
                     new_task = request_task.copy()
                     new_task['page'] = page + 1
                     self.queue.put_nowait(new_task)
+                self.queue.task_done()
             except Exception as e:
                 print(f"Aborting request {request_task['idx']} without completion.")
                 #self.queue.task_done()
