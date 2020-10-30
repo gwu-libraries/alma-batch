@@ -11,6 +11,16 @@ from alma_batch_utils import *
 from uuid import uuid4
 from datetime import datetime
 from functools import partial
+import traceback
+import sys
+import logging
+
+handler = logging.FileHandler('./alma_batch_log.txt', 'w')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s:%(message)s')
+handler.setFormatter(formatter)
+logger = logging.getLogger('AlmaBatch')
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 class AlmaBatch:
     
@@ -28,7 +38,6 @@ class AlmaBatch:
         self.batch_idx = 0 # Tracks the number processed in each batch (when batching requests)
         self.num_workers = 25 # Default value for number of async workers
         self.limit = 100 # Number of results per page (default is Ex Libris maximum)
-
     
     def _load_config(self, path: str):
         '''Loads the config file. 
@@ -200,11 +209,11 @@ class AlmaBatch:
             # Give a name to the percentage column
             summary.name = 'percentage_complete'
             # Join the summary to the input data
-            summary = summary.reset_index().join(data, on='idx', how='right')
-            # Drop the index column and replace null values with zeroes
-            summary = summary.drop('idx', axis=1)
-            summary.percentage_complete = summary.percentage_complete.fillna(0)
-            summary.to_csv(self.output_file, index=False)
+            summary_df = summary.reset_index().join(data, on='idx', how='right')
+            # Drop the index column and replace missing values with zeroes
+            summary_df = summary_df.drop('idx', axis=1)
+            summary_df.percentage_complete = summary_df.percentage_complete.fillna(0)
+            summary_df.to_csv(self.output_file, index=False)
         except Exception as e:
             raise
         return self
@@ -213,9 +222,14 @@ class AlmaBatch:
         '''Saves the API output to disk, as JSON map from row index to result object.
         If a batch parameter is supplied and the batch_size is non-zero, save the output in batches.'''
         if self.batch_size > 0:
-            api_data = [result for result in self.results[(batch-1)*self.batch_size:batch*self.batch_size]]
+            # Save everything added since the last batch, if anything was added
+            if not len(self.results) > self.batch_idx: 
+                return self
+            api_data = self.results[self.batch_idx:]
+            # Update the counter for the next iteration
+            self.batch_idx = len(self.results)
         else:
-            api_data = self.results[:]
+            api_data = self.results
         # Timestamp to add as part of metadata
         timestamp = datetime.now().strftime("%d-%m-%Y %H:%M")
         # Unique part of filename
@@ -255,6 +269,7 @@ class AlmaBatch:
                 'page': page}
         # Get the client method corresponding to the desired HTTP method
         client_method = getattr(self.client, self.operation)
+        logger.debug(f'Making request for row {idx}, page {page}.')
         try:
             # Wrap the call in the throttler context manager
             async with self.throttler:    
@@ -265,18 +280,21 @@ class AlmaBatch:
                         raise APIException(error)
                     elif self.content_type == 'application/json':
                         result = await session.json()
+                        logger.debug(f'Received data for row {idx}, page {page}.')
                     else:
                         result = await session.text()
                         # Save the result
             output['result'] = result
             self.results.append(output)
-            if page == 0 :
+            if page == 0:
                 return self._check_for_pagination(result)
             # If this isn't the first page of results, assume that the pagination has already been accounted for; we shouldn't need to add more tasks to the queue
             return 0
         except Exception as e:
             # If this row throws an exception, record it in the errors list
-            output['error'] = e
+            exc_info = sys.exc_info()
+            output['error'] = traceback.format_exception(*exc_info)
+            logger.error(f'Error {e} on row {idx} page {page}.')
             self.errors.append(output)
             # Can't extract pagination in this case
             return 0
@@ -288,7 +306,7 @@ class AlmaBatch:
         '''
         while True:
             request_task = await self.queue.get() # Get a task to process. Request should be a dictionary containing a row of data, an index (idx), and an page 
-            #print(f'Current task is {request_task}')
+            logger.debug(f"Task acquired: index {request_task['idx']}, page {request_task['page']}.")
             try:
                 more_pages = await self._async_request(**request_task) 
                 # Mark the current request task as done
@@ -298,6 +316,7 @@ class AlmaBatch:
                     new_task = request_task.copy()
                     new_task['page'] = page + 1
                     self.queue.put_nowait(new_task)
+                    logger.debug(f"Task queued up: index {request_task['idx']}, page {request_task['page']}.")
                 self.queue.task_done()
             except Exception as e:
                 print(f"Aborting request {request_task['idx']} without completion.")
