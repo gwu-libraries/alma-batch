@@ -386,8 +386,8 @@ class AlmaBatch:
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    def make_requests(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
-        '''AManages asynchronous requests in batches.
+    async def amake_requests(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
+        '''Manages asynchronous requests in batches.
         
         :param rate_limit: set by default to the max allowed by the ExL API (25 reqs/sec).
         :param batch_size: can be set to 0 to operate without batching. Otherwise, asynchronous 
@@ -403,7 +403,7 @@ class AlmaBatch:
         for j, batch in enumerate(batches):
             try:
                 self.logger.info(f'Running batch {j+1}...')
-                asyncio.run(self._main(batch))
+                await self._main(batch)
                 self._do_after_requests(iteration=j)
             except Exception as e:
                 self.exception(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
@@ -411,3 +411,6 @@ class AlmaBatch:
                 raise # For debugging
         self.logger.info('All requests completed.')
         return self
+
+    def make_requests(self, *args, **kwargs):
+        return asyncio.run(self.amake_requests(*args, **kwargs))
