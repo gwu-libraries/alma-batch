@@ -28,5 +28,5 @@ pip install -r requirements.txt
 5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in `alma_batch_example.ipynb`).
    - Use `AlmaBatch.load_csv()` to load an external CSV file.
    - Or assign a pandas `DataFrame` or list of Python dictionaries directly to the `AlmaBatch.data` attribute.
-   - Use `AlmaBatch.make_requests()` to run from a script. (This function will launch its own event loop.)
-   - The alternate method `AlmaBatch.make_requests_async()` is provided for running within a Jupypter notebook with the `await` syntax (see the example).
+   - `AlmaBatch.amake_requests()` is the main (asynchronous) method that marshalls the requests asynchronously (in batches, if desired). This function should be `await`ed in your code (in a Jupyter Notebook) or called via `asyncio.run`.
+   - Alternately, `AlmaBatch.make_requests()` is provided as a convenience method; it launches an event loop and runs `amake_requests`.
