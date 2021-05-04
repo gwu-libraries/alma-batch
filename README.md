@@ -25,8 +25,5 @@ pip install -r requirements.txt
    - The particular endpoint you are using (from the Ex Libris Dev Center documentation).
    - The name of an output file (in CSV format) where AlmaBatch will report the results of each call (including the path to it on your local machine).
    - An optional path to a folder (on your local machine) for serializing the results from the API calls.
-5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in `alma_batch_example.ipynb`).
-   - Use `AlmaBatch.load_csv()` to load an external CSV file.
-   - Or assign a pandas `DataFrame` or list of Python dictionaries directly to the `AlmaBatch.data` attribute.
-   - `AlmaBatch.amake_requests()` is the main (asynchronous) method that marshalls the requests asynchronously (in batches, if desired). This function should be `await`ed in your code (in a Jupyter Notebook) or called via `asyncio.run`.
-   - Alternately, `AlmaBatch.make_requests()` is provided as a convenience method; it launches an event loop and runs `amake_requests`.
+5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in `alma_batch_examples.ipynb`). The notebook contains a worked example for retrieving items from an Alma Physical Item set and scanning those items in. It also contains an example for scanning in items from a CSV file (such as output by an Alma Analytics report). 
+   
