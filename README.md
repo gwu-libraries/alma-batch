@@ -25,5 +25,5 @@ pip install -r requirements.txt
    - The particular endpoint you are using (from the Ex Libris Dev Center documentation).
    - The name of an output file (in CSV format) where AlmaBatch will report the results of each call (including the path to it on your local machine).
    - An optional path to a folder (on your local machine) for serializing the results from the API calls.
-5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in `alma_batch_examples.ipynb`). The notebook contains a worked example for retrieving items from an Alma Physical Item set and scanning those items in. It also contains an example for scanning in items from a CSV file (such as output by an Alma Analytics report). 
+5. Call `AlmaBatch` from a separate script or Jupyter Notebook (as shown in [alma_batch_examples.ipynb](https://github.com/gwu-libraries/alma-batch/blob/main/alma_batch_examples.ipynb)). The notebook contains a worked example for retrieving items from an Alma Physical Item set and scanning those items in. It also contains an example for scanning in items from a CSV file (such as output by an Alma Analytics report). 
    
