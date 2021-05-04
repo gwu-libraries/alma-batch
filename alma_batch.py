@@ -24,6 +24,7 @@ class AlmaBatch:
                     - the user's API key
                     - the type of API query (as specified by an EX Libris API endpoint).
         '''
+        self.logger = logging.getLogger(__name__)
         self._load_config(config)
         self.api_doc = self._load_openapi(self.openapi)
         self.header = self._create_header()
@@ -32,7 +33,7 @@ class AlmaBatch:
         self.batch_idx = 0 # Tracks the number processed in each batch (when batching requests)
         self.num_workers = 25 # Default value for number of async workers
         self.limit = 100 # Number of results per page (default is Ex Libris maximum)
-        self.logger = logging.getLogger(__name__)
+       
     
     def _load_config(self, config_path: str='', config: dict=None):
         '''Loads the config file. 
