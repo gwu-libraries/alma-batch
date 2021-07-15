@@ -80,23 +80,6 @@ class AlmaBatch:
             self.logger.exception('Failed to load OpenAPI documentation.')
             raise
     
-    def _create_header(self):
-        '''Creates the header for the API request, using the supplied API key from the config file and (optionally) a supplied accept parameter (default is JSON) and content type (required if operation is put/post).
-        '''
-        try:
-            header = {'Authorization': f'apikey {self.apikey}'}
-            if hasattr(self, 'accepts'):
-                header['Accept'] = self.accepts
-            else:
-                header['Accept'] = self.accepts = 'application/json'
-            # If a put or post operation, we need to include the content type 
-            if self.operation in ['post', 'put']:
-                header['Content-Type'] = self.content_type
-            return header
-        except AttributeError:
-            self.logger.error('Configuration error. "content_type" is a required parameter for POST or PUT operations.')
-            raise
-    
     def load_csv(self, path_to_csv: str, clean_columns: bool = True):
         '''Loads the CSV file at the supplied path and assigns to self.
         
@@ -112,7 +95,7 @@ class AlmaBatch:
         except Exception as e:
             self.logger.exception('Failed to load CSV.')
             raise e
-    
+
     def validate_data(self):
         '''Checks that the columns or keys in self.data correspond to the parameters in the specified API.'''
 
@@ -139,29 +122,23 @@ class AlmaBatch:
         except Exception as e:
             self.logger.exception('Error validating parameters')
             raise
-
-    def _make_batch(self):
+    
+    def _create_header(self):
+        '''Creates the header for the API request, using the supplied API key from the config file and (optionally) a supplied accept parameter (default is JSON) and content type (required if operation is put/post).
         '''
-        Batches self.data, using self.batch_size. Each batch of requests will be run concurrently.
-        '''
-
-        # If self.data is a DataFrame, convert to native Python structure (list of dicts) for processing
-        # Include the index of the row as a separate value
-        # For each row, we initialize the page to 0 (for paginated results)
-        if hasattr(self.data, 'columns'):
-            rows = [{'idx': i, 
-                    'page': 0,
-                    'row_data': row._asdict()} for i, row in enumerate(self.data.itertuples(index=False))]
-        else:
-            rows = [{'idx': i, 
-                    'page': 0,
-                    'row_data': row} for i, row in enumerate(self.data)]
-        if self.batch_size > 0:
-            batches = chunk_list(rows, self.batch_size)
-        # If batch_size = 0, use a single batch
-        else:
-            batches = [rows]
-        return batches
+        try:
+            header = {'Authorization': f'apikey {self.apikey}'}
+            if hasattr(self, 'accepts'):
+                header['Accept'] = self.accepts
+            else:
+                header['Accept'] = self.accepts = 'application/json'
+            # If a put or post operation, we need to include the content type 
+            if self.operation in ['post', 'put']:
+                header['Content-Type'] = self.content_type
+            return header
+        except AttributeError:
+            self.logger.error('Configuration error. "content_type" is a required parameter for POST or PUT operations.')
+            raise
 
     def _construct_request(self, row_data: dict, page: int):
         '''Returns a url and a set of query parameters for an API call.
@@ -191,15 +168,40 @@ class AlmaBatch:
                'headers': self.header}
         return url, args
 
-    def _check_for_pagination(self, result: dict):
-        '''Checks a result from the API for paginated results. If the total_record_count attribute > self.limit, then returns a number of pages still needed. Otherwise, returns 0.
-
-        :param result: result of an API call.
+    def _make_batch(self):
         '''
-        total_results = result.get('total_record_count')
-        if total_results and total_results > self.limit:
-            return int(total_results / self.limit) # Number of (additional) iterations needed to get the rest of the results
-        return 0
+        Batches self.data, using self.batch_size. Each batch of requests will be run concurrently.
+        '''
+
+        # If self.data is a DataFrame, convert to native Python structure (list of dicts) for processing
+        # Include the index of the row as a separate value
+        # For each row, we initialize the page to 0 (for paginated results)
+        if hasattr(self.data, 'columns'):
+            rows = [{'idx': i, 
+                    'page': 0,
+                    'row_data': row._asdict()} for i, row in enumerate(self.data.itertuples(index=False))]
+        else:
+            rows = [{'idx': i, 
+                    'page': 0,
+                    'row_data': row} for i, row in enumerate(self.data)]
+        if self.batch_size > 0:
+            batches = chunk_list(rows, self.batch_size)
+        # If batch_size = 0, use a single batch
+        else:
+            batches = [rows]
+        return batches
+    
+    def _do_after_requests(self, iteration: int):
+        '''
+        Called after a completed batch of requests.
+
+        :param iteration: the number of the just-completed batch.
+        '''
+        if hasattr(self, 'output_file'):
+            self._update_data()
+        if hasattr(self, 'path_for_api_output') and self.serialize_return:
+            self.logger.info(f'Saving API output for batch {iteration+1}')
+            self.dump_output(batch=iteration+1)
 
     def _update_data(self):
         '''Updates the data supplied as parameters to the API calls, indicating which rows have been completed.
@@ -270,18 +272,16 @@ class AlmaBatch:
             raise
         return self
 
-    def _do_after_requests(self, iteration: int):
-        '''
-        Called after a completed batch of requests.
+    def _check_for_pagination(self, result: dict):
+        '''Checks a result from the API for paginated results. If the total_record_count attribute > self.limit, then returns a number of pages still needed. Otherwise, returns 0.
 
-        :param iteration: the number of the just-completed batch.
+        :param result: result of an API call.
         '''
-        if hasattr(self, 'output_file'):
-            self._update_data()
-        if hasattr(self, 'path_for_api_output') and self.serialize_return:
-            self.logger.info(f'Saving API output for batch {iteration+1}')
-            self.dump_output(batch=iteration+1)
-    
+        total_results = result.get('total_record_count')
+        if total_results and total_results > self.limit:
+            return int(total_results / self.limit) # Number of (additional) iterations needed to get the rest of the results
+        return 0
+
     async def _async_request(self, row_data: dict, idx: int, page: int=0, payload=None):
         '''
         Make a single asynchronous request.

@@ -4,7 +4,7 @@ This is an alpha release.
 
 ## How It Works
 - The `AlmaBatch` object can work with either a pandas `DataFrame` or a Python list of dictionaries. For each row in the data, it makes an asynchronous API call, using the columns or keys as parameters. Calls can be executed in batches (_e.g_, 500 at a time) or as one single batch. Errors are caught and reported for the relevant rows, and API output can be serialized and saved locally.
-- The current release handles only `GET` operations, but I plan to build in support for `POST` and `PUT` ops in a future release.
+- The current release handles only HTTP calls without a payload, but I plan to build in support for `POST` and `PUT` ops with payloads in a future release.
 
 
 ## How to Use It
