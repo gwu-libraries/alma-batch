@@ -364,7 +364,7 @@ class AlmaBatch:
         '''
         self.queue = asyncio.Queue() # Async task queue => keeps track of the number of tasks left to perform
         # Initialize a new client session
-        self.client = aiohttp.ClientSession()
+        self.client = aiohttp.ClientSession(connector_owner=False)
         for row in batch:
             self.queue.put_nowait(row) # Initialize the queue with the initial call to each endpoint (page=0)
         #Create a list of coroutine workers to process the tasks
@@ -374,7 +374,7 @@ class AlmaBatch:
             # This usage will cause an exception raised by a worker to bubble up
             # If the worker (as opposed to the request) raises an exception, this will cause the wait function to return.
             # Otherwise, it will return when all tasks in the queue have been consumed (marked done).
-            done, _ = await asyncio.wait([self.queue.join(), *tasks], 
+            done, _ = await asyncio.wait([asyncio.create_task(self.queue.join()), *tasks], 
                             return_when=asyncio.FIRST_COMPLETED)
         # Test for the existence of an exception (i.e., a cancelled worker)
         tasks_with_exceptions = set(done) & set(tasks)
@@ -386,6 +386,7 @@ class AlmaBatch:
             task.cancel()
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
+        self.client.close()
 
     async def amake_requests(self, rate_limit: int = 25, batch_size: int = 1000, serialize_return: bool = False):
         '''Manages asynchronous requests in batches.
@@ -407,7 +408,7 @@ class AlmaBatch:
                 await self._main(batch)
                 self._do_after_requests(iteration=j)
             except Exception as e:
-                self.exception(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
+                self.logger.exception(f'Exception encountered on batch {j+1}. Proceeding to next batch.')
                 #continue
                 raise # For debugging
         self.logger.info('All requests completed.')
